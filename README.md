@@ -50,7 +50,7 @@ windows:
 
 linux:
 
-```./CMakeProject
+```./CMakeProject1```
 
 
 
