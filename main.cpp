@@ -149,7 +149,7 @@ void action_callback(Fl_Widget* w, void*) {
             if (output_path.native().empty()) {
                 output_path = input_path.parent_path();
             }
-            else if (fs::exists(output_path)) {
+            else if (!fs::exists(output_path)) {
                 fl_alert("output path does not exist on this system");
                 return;
             }

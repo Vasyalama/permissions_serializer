@@ -91,6 +91,7 @@ void read_fso_isDir_size_permissions(filesystem_object& fso) {
     fs::file_status status = fs::status(fso.full_path);
     fs::perms permissions = status.permissions();
     fso.linux_permissions = static_cast<uint32_t>(permissions);
+    addToLog(u8"read permissions for " + fso.full_path.u8string());
 #endif
 
 }
