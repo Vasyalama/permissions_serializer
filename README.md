@@ -8,14 +8,14 @@ FLTK gui app written in c++ that serializes/deserializes given file or folder al
   - NOTE: if you want to save previously serialized permissions (from a different OS) for the input then provide the .kser file that was used to get the deserialized input. The app will overrite the new permissions and keep the permissions from other OS.
     
 ### deserialize
-    - pick a .kser file to deserialize as input parameter
-    - pick a folder to deserialze into. Default: parent directory of input.
-    - will not work if output folder already contains an object with the same name as the resulting deserialized object.
+  - pick a .kser file to deserialize as input parameter
+  - pick a folder to deserialze into. Default: parent directory of input.
+  - will not work if output folder already contains an object with the same name as the resulting deserialized object.
 
 ## how data in .kser is stored.
 data | file_obj_num | is_dir | filename_len | filename | filesize | ... | raw_binary_file_data | ... | 
 --- | --- | --- | --- |--- |--- |--- |--- |--- |
-bytes | 4 | 1 | 4 | filename_len | ... | 8 | ... | filesize | ... |     
+bytes | 4 | 1 | 4 | filename_len |8 |... | filesize | ... |    
 
 NOTE: raw file data is stored without compression, so .kser files will take up about same amount of space as all the input files combined.
 
