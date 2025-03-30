@@ -273,7 +273,7 @@ void create_files(const std::vector<filesystem_object>& fso_v,
                 addToLog(u8"set permissions for " + new_file_path.u8string());
             } else {
                 addToLog(u8"no permissions found for windows operating system for file" + new_file_path.u8string());
-                addToLog("created file with default permissions on your machine");
+                addToLog(u8"created file with default permissions on your machine");
             }
 
             
