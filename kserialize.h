@@ -125,7 +125,7 @@ void extract_old_fso_info(const fs::path& output_file, std::vector<filesystem_ob
         in.read(utf8_str.data(), filename_len);
 #if defined(OS_WIN)
         fs::path u8path = fs::u8path(utf8_str);
-        fso.filename = fs::widePath(u8path.wstring());
+        fso.filename = fs::path(u8path.wstring());
         // read wstring from file 
         // std::vector<uint8_t> buffer(filename_len);
         // in.read(reinterpret_cast<char*>(buffer.data()), filename_len);
