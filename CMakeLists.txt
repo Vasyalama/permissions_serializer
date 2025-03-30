@@ -20,9 +20,6 @@ endif()
 
 
 
-
-
-
 # TODO: Add tests and install targets if needed.
 find_package(FLTK 1.4 CONFIG REQUIRED)
 

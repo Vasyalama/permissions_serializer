@@ -2,23 +2,25 @@
 #ifndef K_SERIALIZE_IMPL
 #define K_SERIALIZE_IMPL
 
-#include <windows.h>
-#include <aclapi.h>
-#include <sddl.h>
+
+
 #include <iostream>
 #include <vector>
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
 #include <unordered_map>
-#include <io.h>
+
 #include <fcntl.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #include "permwin.h"
+#include <windows.h>
+#include <aclapi.h>
+#include <sddl.h>
+#include <io.h>
 #define OS_WIN
 #elif defined(__linux__) || defined(__gnu_linux__) || defined(linux) || defined(__linux)
-#include "permslinux.h"
 #define OS_LINUX
 #endif
 
@@ -84,7 +86,9 @@ void read_fso_isDir_size_permissions(filesystem_object& fso) {
         throw_u8string_error(u8"failed to get current user's permissions or no explicit permissions found for " + fso.full_path.u8string());
     }
 #elif defined (OS_LINUX)
-
+    fs::file_status status = fs::status(fso.full_path);
+    fs::perms permissions = status.permissions();
+    fso.linux_permissions = static_cast<uint32_t>(permissions);
 #endif
 
 }
@@ -127,8 +131,8 @@ void extract_old_fso_info(const fs::path& output_file, std::vector<filesystem_ob
 
 #elif defined(OS_LINUX)
         std::string utf8_str;
-        utf8_str.resize(byte_count);
-        file.read(utf8_str.data(), byte_count);
+        utf8_str.resize(filename_len);
+        in.read(utf8_str.data(), filename_len);
         fso.filename = fs::u8path(utf8_str);
 #endif
 
@@ -162,8 +166,12 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
         out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
         auto wstr = fso.filename.wstring();
         out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
-#elif defined(OS_LINUX)
 
+#elif defined(OS_LINUX)
+        uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
+        out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
+        auto wstr = fso.filename.u8string();
+        out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
 #endif
 
         out.write(reinterpret_cast<const char*>(&fso.win_permissions), sizeof(fso.win_permissions));
@@ -212,8 +220,9 @@ void create_files(const std::vector<filesystem_object>& fso_v,
 
     for (const auto& fso : fso_v) {
         try {
-#if defined(OS_WIN)
             fs::path new_file_path = output_dir_path / fso.filename;
+
+#if defined(OS_WIN)  
             std::wstring widePath = new_file_path.wstring();
             LPWSTR output_file_path = (LPWSTR)(widePath.c_str());
 
@@ -240,18 +249,43 @@ void create_files(const std::vector<filesystem_object>& fso_v,
                 output_file.close();
                 addToLog(u8"wrote data to " + new_file_path.u8string());
             }
+            
+            // if (fso.win_permissions == 0){
+            //     fs::permissions(new_file_path, static_cast<fs::perms>(fso.linux_permissions));
+            // }   
 
             if (!SetCurrentUserPermissionsWin(output_file_path, fso.win_permissions)) {
                 throw_u8string_error(u8"failed to set permissions for " + new_file_path.u8string());
             }
 
 #elif defined(OS_LINUX)
+            if (fso.isDir) {
+                fs::create_directory(new_file_path);
+            } else {
+                std::ofstream file(new_file_path);
+                if (!file) throw_u8string_error(u8"failed to create " +  new_file_path.u8string());
+                file.close();
+            }
 
-            throw std::runtime_error("Linux implementation not complete");
-#else
-            throw std::runtime_error("Platform not supported");
+            if (!fso.isDir) {
+                std::ofstream output_file(new_file_path, std::ios::binary);
+                if (!output_file) {
+                    throw_u8string_error(u8"failed to open " + new_file_path.u8string());
+                }
+
+                std::vector<char> buffer(fso.file_size);
+                serialized_file.read(buffer.data(), fso.file_size);
+                output_file.write(buffer.data(), fso.file_size);
+                output_file.close();
+                addToLog(u8"wrote data to " + new_file_path.u8string());
+            }
+            
+            // if (fso.linux_permissions == 0){
+            //     fs::permissions(new_file_path, static_cast<fs::perms>(fso.win_permissions));
+            // }
+
+            fs::permissions(new_file_path, static_cast<fs::perms>(fso.linux_permissions));
 #endif
-
         }
         catch (const std::exception& e) {
             throw std::runtime_error(std::string("Failed to process file '") +

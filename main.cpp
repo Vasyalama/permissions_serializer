@@ -211,7 +211,7 @@ int main(int argc, char** argv) {
 }
 
 void addToLog(std::u8string message) {
-    message += '\n\0';
+    message += u8"\n\0";
     if (log_buffer && log_editor) {
         log_buffer->append(reinterpret_cast<const char*>(&message[0]));
         log_editor->insert_position(log_buffer->length());
