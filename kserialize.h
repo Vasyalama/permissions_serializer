@@ -23,6 +23,11 @@
 #define OS_WIN
 #elif defined(__linux__) || defined(__gnu_linux__) || defined(linux) || defined(__linux)
 #define OS_LINUX
+mode_t read_umask(){
+    mode_t mask = umask (0);
+    umask(mask);
+    return mask;
+}
 #endif
 
 namespace fs = std::filesystem;
@@ -261,17 +266,23 @@ void create_files(const std::vector<filesystem_object>& fso_v,
                 addToLog(u8"wrote data to " + new_file_path.u8string());
             }
             
-            // if (fso.win_permissions == 0){
-            //     fs::permissions(new_file_path, static_cast<fs::perms>(fso.linux_permissions));
-            // }   
-
-            if (!SetCurrentUserPermissionsWin(output_file_path, fso.win_permissions)) {
-                throw_u8string_error(u8"failed to set permissions for " + new_file_path.u8string());
+            if (fso.win_permissions != 0){
+                if (!SetCurrentUserPermissionsWin(output_file_path, fso.win_permissions)) {
+                    throw_u8string_error(u8"failed to set permissions for " + new_file_path.u8string());
+                }
+                addToLog(u8"set permissions for " + new_file_path.u8string());
+            } else {
+                addToLog(u8"no permissions found for windows operating system for file" + new_file_path.u8string());
+                addToLog("created file with default permissions on your machine");
             }
+
+            
 
 #elif defined(OS_LINUX)
             if (fso.isDir) {
-                fs::create_directory(new_file_path);
+                if (mkdir(reinterpret_cast<const char*>(&(new_file_path.u8string()[0])), 0777) == -1){
+                    throw_u8string_error(u8"failed to create dir " +  new_file_path.u8string());
+                }
             } else {
                 std::ofstream file(new_file_path);
                 if (!file) throw_u8string_error(u8"failed to create " +  new_file_path.u8string());
@@ -291,11 +302,15 @@ void create_files(const std::vector<filesystem_object>& fso_v,
                 addToLog(u8"wrote data to " + new_file_path.u8string());
             }
             
-            // if (fso.linux_permissions == 0){
-            //     fs::permissions(new_file_path, static_cast<fs::perms>(fso.win_permissions));
-            // }
+            if (fso.linux_permissions != 0){
+                fs::permissions(new_file_path, static_cast<fs::perms>(fso.linux_permissions));
+                addToLog(u8"set permissions for " + new_file_path.u8string());
+            } else {
+                addToLog(u8"no permissions found for linux operating system for file " + new_file_path.u8string());
+                addToLog(u8"created file with deault permissions mask");
+            }
 
-            fs::permissions(new_file_path, static_cast<fs::perms>(fso.linux_permissions));
+            
 #endif
         }
         catch (const std::exception& e) {
