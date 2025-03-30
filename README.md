@@ -40,7 +40,17 @@ mkdir build
 cd build
 cmake ..
 cmake --build .
-./CMakeProject1.exe
 ```
+
+run the executable
+
+windows:
+
+```.\CMakeProject1```
+
+linux:
+
+```./CMakeProject
+
 
 
