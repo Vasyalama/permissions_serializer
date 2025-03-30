@@ -120,19 +120,21 @@ void extract_old_fso_info(const fs::path& output_file, std::vector<filesystem_ob
         uint32_t filename_len;
         in.read(reinterpret_cast<char*>(&filename_len), sizeof(filename_len));
 
-#if defined(OS_WIN)
-        // read wstring from file 
-        std::vector<uint8_t> buffer(filename_len);
-        in.read(reinterpret_cast<char*>(buffer.data()), filename_len);
-        const size_t wchar_count = filename_len / sizeof(wchar_t);
-        const wchar_t* wchars = reinterpret_cast<const wchar_t*>(buffer.data());
-        std::wstring ws = std::wstring(wchars, wchar_count);
-        fso.filename = fs::path(ws);
-
-#elif defined(OS_LINUX)
         std::string utf8_str;
         utf8_str.resize(filename_len);
         in.read(utf8_str.data(), filename_len);
+#if defined(OS_WIN)
+        fs::path u8path = fs::u8path(utf8_str);
+        fso.filename = fs::widePath(u8path.wstring());
+        // read wstring from file 
+        // std::vector<uint8_t> buffer(filename_len);
+        // in.read(reinterpret_cast<char*>(buffer.data()), filename_len);
+        // const size_t wchar_count = filename_len / sizeof(wchar_t);
+        // const wchar_t* wchars = reinterpret_cast<const wchar_t*>(buffer.data());
+        // std::wstring ws = std::wstring(wchars, wchar_count);
+        // fso.filename = fs::widePath(utf8_str.)
+
+#elif defined(OS_LINUX)
         fso.filename = fs::u8path(utf8_str);
 #endif
 
@@ -161,18 +163,19 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
         out.write(reinterpret_cast<const char*>(&fso.isDir), sizeof(fso.isDir));
 
 
-#if defined(OS_WIN)
-        uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.wstring().size() * sizeof(wchar_t));
-        out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
-        auto wstr = fso.filename.wstring();
-        out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
+    uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
+    out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
+    auto u8str = fso.filename.u8string();
+    out.write(reinterpret_cast<const char*>(&(u8str[0])), filename_len_bytes);
+// #if defined(OS_WIN)
+//         uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.wstring().size() * sizeof(wchar_t));
+//         out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
+//         auto wstr = fso.filename.wstring();
+//         out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
 
-#elif defined(OS_LINUX)
-        uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
-        out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
-        auto wstr = fso.filename.u8string();
-        out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
-#endif
+// #elif defined(OS_LINUX)
+        
+// #endif
 
         out.write(reinterpret_cast<const char*>(&fso.win_permissions), sizeof(fso.win_permissions));
         out.write(reinterpret_cast<const char*>(&fso.linux_permissions), sizeof(fso.linux_permissions));
@@ -189,6 +192,7 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
             //std::vector<char> buffer(fso.file_size);
             //in_file.read(buffer.data(), fso.file_size);
             //out.write(buffer.data(), fso.file_size);
+            
             if (!(out << in.rdbuf()))
                 throw_u8string_error(u8"failed to write " + fso.full_path.u8string() + u8" data to " + output_file.u8string());
         }
@@ -328,6 +332,7 @@ void serialize(fs::path input_path, fs::path output_path) {
 void deserialize(fs::path input_file_name, fs::path output_file_path) {
     std::vector<filesystem_object> fso_v;
     extract_old_fso_info(input_file_name, fso_v);
+    addToLog(u8"extracted permissions");
     create_files(fso_v, input_file_name, output_file_path);
 }
 
