@@ -8,10 +8,12 @@ FLTK gui app written in c++ that serializes/deserializes given file or folder al
 - deserialize
     - pick a .kser file to deserialize as input parameter
     - pick a folder to deserialze into. Default: parent directory of input.
+
 Works on linux and windows.
 
 ## how data in .kser is stored.
 | amount_of_file_objects | (| isDir |filename_len_in_bytes|filename|file size|) * amount_of_file_objects | raw_binary_file_data * amount_of_file_objects |
+
 |         4 bytes        |  |1 byte |      4 bytes        |  ...   | 8 bytes |       
 
 NOTE: raw file data is stored without compression, so .kser files will take up about same amount of space as all the input files combined.
@@ -21,15 +23,22 @@ NOTE: raw file data is stored without compression, so .kser files will take up a
 - download fltk-1.4.2-source.tar.gz from [here](https://www.fltk.org/software.php)
 - extract to any folder and navigate to FLTK root directory
 - Generate the build system in the FLTK root directory
+  
 ``` cmake -B build ```
+
 - Build FLTK with the generated build system
+  
 ``` cmake --build build ```
+
 - Install FLTK
+  
 ``` cmake --install build ```
 
+
 ### how to build project
-```git clone
-cd
+```
+git clone https://github.com/Vasyalama/permissions_serializer.git
+cd permissions_serializer
 mkdir build
 cd build
 cmake ..
