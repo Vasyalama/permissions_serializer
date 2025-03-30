@@ -10,6 +10,7 @@
 #include <fstream>
 #include <algorithm>
 #include <unordered_map>
+#include <algorithm>
 
 #include <fcntl.h>
 
@@ -124,7 +125,9 @@ void extract_old_fso_info(const fs::path& output_file, std::vector<filesystem_ob
         utf8_str.resize(filename_len);
         in.read(utf8_str.data(), filename_len);
 #if defined(OS_WIN)
+        std::replace(utf8_str.begin(), utf8_str.end(), u8'/', u8'\\');
         fs::path u8path = fs::u8path(utf8_str);
+
         fso.filename = fs::path(u8path.wstring());
         // read wstring from file 
         // std::vector<uint8_t> buffer(filename_len);
@@ -166,6 +169,10 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
     uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
     out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
     auto u8str = fso.filename.u8string();
+
+#if defined(OS_WIN)
+    std::replace(u8str.begin(), u8str.end(), u8'\\', u8'/');
+#endif
     out.write(reinterpret_cast<const char*>(&(u8str[0])), filename_len_bytes);
 // #if defined(OS_WIN)
 //         uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.wstring().size() * sizeof(wchar_t));
