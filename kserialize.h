@@ -16,10 +16,6 @@
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #include "permwin.h"
-#include <windows.h>
-#include <aclapi.h>
-#include <sddl.h>
-#include <io.h>
 #define OS_WIN
 #elif defined(__linux__) || defined(__gnu_linux__) || defined(linux) || defined(__linux)
 #define OS_LINUX
@@ -132,15 +128,7 @@ void extract_old_fso_info(const fs::path& output_file, std::vector<filesystem_ob
 #if defined(OS_WIN)
         std::replace(utf8_str.begin(), utf8_str.end(), u8'/', u8'\\');
         fs::path u8path = fs::u8path(utf8_str);
-
         fso.filename = fs::path(u8path.wstring());
-        // read wstring from file 
-        // std::vector<uint8_t> buffer(filename_len);
-        // in.read(reinterpret_cast<char*>(buffer.data()), filename_len);
-        // const size_t wchar_count = filename_len / sizeof(wchar_t);
-        // const wchar_t* wchars = reinterpret_cast<const wchar_t*>(buffer.data());
-        // std::wstring ws = std::wstring(wchars, wchar_count);
-        // fso.filename = fs::widePath(utf8_str.)
 
 #elif defined(OS_LINUX)
         fso.filename = fs::u8path(utf8_str);
@@ -171,23 +159,14 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
         out.write(reinterpret_cast<const char*>(&fso.isDir), sizeof(fso.isDir));
 
 
-    uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
-    out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
-    auto u8str = fso.filename.u8string();
+        uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.u8string().size());
+        out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
+        auto u8str = fso.filename.u8string();
 
 #if defined(OS_WIN)
-    std::replace(u8str.begin(), u8str.end(), u8'\\', u8'/');
+        std::replace(u8str.begin(), u8str.end(), u8'\\', u8'/');
 #endif
-    out.write(reinterpret_cast<const char*>(&(u8str[0])), filename_len_bytes);
-// #if defined(OS_WIN)
-//         uint32_t filename_len_bytes = static_cast<uint32_t>(fso.filename.wstring().size() * sizeof(wchar_t));
-//         out.write(reinterpret_cast<const char*>(&filename_len_bytes), sizeof(filename_len_bytes));
-//         auto wstr = fso.filename.wstring();
-//         out.write(reinterpret_cast<const char*>(&(wstr[0])), filename_len_bytes);
-
-// #elif defined(OS_LINUX)
-        
-// #endif
+        out.write(reinterpret_cast<const char*>(&(u8str[0])), filename_len_bytes);
 
         out.write(reinterpret_cast<const char*>(&fso.win_permissions), sizeof(fso.win_permissions));
         out.write(reinterpret_cast<const char*>(&fso.linux_permissions), sizeof(fso.linux_permissions));
@@ -199,12 +178,7 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
             std::ifstream in(fso.full_path, std::ios::binary);
             if (!in) {
                 throw_u8string_error(u8"failed to open source file: " + fso.full_path.u8string());
-            }
-
-            //std::vector<char> buffer(fso.file_size);
-            //in_file.read(buffer.data(), fso.file_size);
-            //out.write(buffer.data(), fso.file_size);
-            
+            }            
             if (!(out << in.rdbuf()))
                 throw_u8string_error(u8"failed to write " + fso.full_path.u8string() + u8" data to " + output_file.u8string());
         }
@@ -213,6 +187,7 @@ void write_fso_map_to_file(const fs::path& output_file, const std::vector<filesy
 
 void create_files(const std::vector<filesystem_object>& fso_v,
     fs::path serialized_file_path, fs::path output_dir_path) {
+
 
     std::ifstream serialized_file(serialized_file_path, std::ios::binary);
     if (!serialized_file) {
@@ -237,6 +212,10 @@ void create_files(const std::vector<filesystem_object>& fso_v,
     for (const auto& fso : fso_v) {
         try {
             fs::path new_file_path = output_dir_path / fso.filename;
+
+            if (fs::exists(new_file_path)) {
+                throw_u8string_error(u8"can't deserialize " + new_file_path.u8string() + u8" because it already exists");
+            }
 
 #if defined(OS_WIN)  
             std::wstring widePath = new_file_path.wstring();
@@ -271,7 +250,7 @@ void create_files(const std::vector<filesystem_object>& fso_v,
                     throw_u8string_error(u8"failed to set permissions for " + new_file_path.u8string());
                 }
                 addToLog(u8"set permissions for " + new_file_path.u8string());
-            } else {
+            } else {    
                 addToLog(u8"no permissions found for windows operating system for file" + new_file_path.u8string());
                 addToLog(u8"created file with default permissions on your machine");
             }
@@ -340,6 +319,8 @@ void serialize(fs::path input_path, fs::path output_path) {
     read_fso_isDir_size_permissions(first_fso);
     fso_v.push_back(first_fso);
 
+
+
     if (fs::is_directory(input_path)) {
         process_directory(input_path, fso_map, fso_v);
     }
@@ -348,13 +329,14 @@ void serialize(fs::path input_path, fs::path output_path) {
         [](const filesystem_object& a, const filesystem_object& b) {
             return a.filename < b.filename; });
 
+    addToLog(u8"serializing...");
     write_fso_map_to_file(output_path, fso_v);
 }
 
 void deserialize(fs::path input_file_name, fs::path output_file_path) {
     std::vector<filesystem_object> fso_v;
     extract_old_fso_info(input_file_name, fso_v);
-    addToLog(u8"extracted permissions");
+    addToLog(u8"extracted permissions...");
     create_files(fso_v, input_file_name, output_file_path);
 }
 

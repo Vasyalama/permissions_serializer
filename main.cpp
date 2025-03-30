@@ -64,16 +64,24 @@ void action_callback(Fl_Widget* w, void*) {
     try {
         fs::path input_path = fs::path(fs::u8path(input->value()).native());
         fs::path output_path = fs::path(fs::u8path(output->value()).native());
-
+        
         if (serialize_btn && serialize_btn->value()) {
             if (input_path.native().empty()) {
                 fl_alert("input path is empty. please select file or folder to serialize");
+                return;
+            }
+            if (!fs::exists(input_path)) {
+                fl_alert("input path doesn't exist on the system");
                 return;
             }
 
             if (output_path.native().empty()) {
                 output_path = input_path.parent_path();
             }
+            else if (!fs::exists(output_path)) {
+                fl_alert("output path does not exist on the system");
+                return;
+            }   
 
             fs::path kser_file_path;
             if (fs::is_directory(output_path)) {
@@ -81,9 +89,10 @@ void action_callback(Fl_Widget* w, void*) {
                 kser_file_path.replace_extension(".kser");
 
                 if (fs::exists(kser_file_path)) {
-                    if (!fl_ask("you provided an output folder path that already contains a file named %s. do you want to \
-                            overwrite it?\n\n HINT: if you want to use that file for extracting permissions for  other \
-                            systems please select output type as file and choose the correct file. ")) {
+                    if (!fl_ask("you provided an output folder path that already contains file named %s.\n \
+                            do you want to overwrite it?\n\n \
+                            HINT: if you want to use that file for extracting permissions for  other\n \
+                            systems please select output type as file and choose the correct file. ", kser_file_path.u8string().c_str())) {
                         return;
                     }
                     else {
@@ -108,13 +117,18 @@ void action_callback(Fl_Widget* w, void*) {
                 kser_file_path = output_path;
             }
             serialize(input_path, kser_file_path);
-            addToLog(u8"finished serializing");
+            addToLog(u8"successfully serialized " + input_path.u8string() + u8" into " + output_path.u8string());
         }
         else if (deserialize_btn && deserialize_btn->value()) {
             if (input_path.native().empty()) {
                 fl_alert("input file path is empty. please provide a .kser input file");
                 return;
             }
+            if (!fs::exists(input_path)) {
+                fl_alert("input path doesn't exist on the system");
+                return;
+            }
+
 
             if (fs::is_directory(input_path)) {
                 fl_alert("input must be a .kser file, not a directory");
@@ -135,9 +149,13 @@ void action_callback(Fl_Widget* w, void*) {
             if (output_path.native().empty()) {
                 output_path = input_path.parent_path();
             }
+            else if (fs::exists(output_path)) {
+                fl_alert("output path does not exist on this system");
+                return;
+            }
             deserialize(input_path, output_path);
             
-            addToLog(u8"finished deserializing");
+            addToLog(u8"successfully deserialized " + input_path.u8string() + u8" into " + output_path.u8string());
         }
         else {
             //unreachable
@@ -211,7 +229,7 @@ int main(int argc, char** argv) {
 }
 
 void addToLog(std::u8string message) {
-    message += u8"\n\0";
+    message += u8"\n";
     if (log_buffer && log_editor) {
         log_buffer->append(reinterpret_cast<const char*>(&message[0]));
         log_editor->insert_position(log_buffer->length());
